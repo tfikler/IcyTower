@@ -15,6 +15,7 @@
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
 
+  let lastUpdateTime = Date.now();
   // Game settings
   const gravity = 0.5;
   const friction = 0.8;
@@ -29,7 +30,8 @@
     speed: 5,
     velX: 0,
     velY: 0,
-    jumping: false
+    jumping: false,
+    alreadyJumped: false
   };
 
   // Platforms
@@ -39,9 +41,15 @@
       x: Math.random() * (canvas.width - 50),
       y: canvas.height - (100 * i) - 50,
       width: 100,
-      height: 10
+      height: 10,
+      timeOnPlatform: 0, // Track time the player is on the platform
+      isTouchedAlready: false,
+      falling: false
     });
   }
+
+  // Score
+  let score = 0;
 
   // Key Listener
   let keys = [];
@@ -49,6 +57,7 @@
     keys[e.keyCode] = true;
     if (e.keyCode == 32 && !player.jumping) { // Space key for jump
       player.jumping = true;
+      player.alreadyJumped = true;
       player.velY = baseJump - Math.abs(player.velX); // Higher jump if running faster
     }
   });
@@ -57,6 +66,9 @@
   });
 
   function updateGame() {
+    const now = Date.now();
+    const deltaTime = (now - lastUpdateTime) / 1000;
+    lastUpdateTime = now;
     // Check key inputs
     if (keys[39]) { // right arrow
       if (player.velX < player.speed) {
@@ -83,6 +95,7 @@
         if (platform.y > canvas.height) {
           platform.y = 0;
           platform.x = Math.random() * (canvas.width - platform.width);
+          score++;
         }
       });
     }
@@ -100,20 +113,41 @@
       player.velY = 0;
     }
 
+    let onPlatform = false;
     // Platform collision
     platforms.forEach(platform => {
-      if (
-              player.x < platform.x + platform.width &&
-              player.x + player.width > platform.x &&
-              player.y + player.height > platform.y &&
-              player.y + player.height < platform.y + platform.height &&
-              player.velY >= 0
-      ) {
-        player.jumping = false;
-        player.velY = 0;
-        player.y = platform.y - player.height;
+      if (!platform.falling) {
+        if (
+                player.x < platform.x + platform.width &&
+                player.x + player.width > platform.x &&
+                player.y + player.height > platform.y &&
+                player.y + player.height < platform.y + platform.height &&
+                player.velY >= 0
+        ) {
+          player.jumping = false;
+          player.velY = 0;
+          player.y = platform.y - player.height;
+          onPlatform = true;
+          platform.isTouchedAlready = true;
+          platform.timeOnPlatform += deltaTime;
+          if (platform.timeOnPlatform >= 3) { // Make the platform fall
+            platform.falling = true;
+          }
+        } else {
+          platform.timeOnPlatform = 0; // Reset if player is not on the platform
+        }
+      } else {
+        platform.y += 5; // Speed of falling
       }
     });
+
+    if ((player.y === canvas.height - player.height) && (player.alreadyJumped)) {
+        console.log('jumped');
+    }
+
+    if (onPlatform && player.velY === 0) {
+      score++;
+    }
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -127,6 +161,11 @@
       ctx.fillStyle = 'black';
       ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
     });
+
+    // Score
+    ctx.fillStyle = 'black';
+    ctx.font = '20px Arial';
+    ctx.fillText("Score: " + score, 10, 30);
 
     requestAnimationFrame(updateGame);
   }

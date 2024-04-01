@@ -55,7 +55,7 @@
   let keys = [];
   window.addEventListener('keydown', function(e) {
     keys[e.keyCode] = true;
-    if (e.keyCode == 32 && !player.jumping) { // Space key for jump
+    if (e.keyCode === 32 && !player.jumping) { // Space key for jump
       player.jumping = true;
       player.alreadyJumped = true;
       player.velY = baseJump - Math.abs(player.velX); // Higher jump if running faster
@@ -121,9 +121,14 @@
                 player.x < platform.x + platform.width &&
                 player.x + player.width > platform.x &&
                 player.y + player.height > platform.y &&
-                player.y + player.height < platform.y + platform.height &&
+                player.y + player.height < platform.y + platform.height + 10 &&
                 player.velY >= 0
         ) {
+          player.velY = 0;
+          player.y = platform.y - player.height; // Adjust player position to be on top of the platform
+          if(player.jumping) {
+            player.velY = baseJump - Math.abs(player.velX); // Apply jump velocity if jumping
+          }
           player.jumping = false;
           player.velY = 0;
           player.y = platform.y - player.height;
@@ -131,7 +136,7 @@
           platform.isTouchedAlready = true;
           platform.timeOnPlatform += deltaTime;
           if (platform.timeOnPlatform >= 3) { // Make the platform fall
-            platform.falling = true;
+            //platform.falling = true;
           }
         } else {
           platform.timeOnPlatform = 0; // Reset if player is not on the platform

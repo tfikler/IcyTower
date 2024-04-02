@@ -62,17 +62,17 @@
   const gravity = 0.5;
   const friction = 0.8;
   const baseJump = -10;
-  let score = 0;
+  let highestY = canvas.height; // Initialize highestY with the starting position of the player
   let animationFrameId;
+  let score = 0; // Initialize score
 
-
-  let player = { x: canvas.width / 2, y: canvas.height - 150, width: 20, height: 20, speed: 5, velX: 0, velY: 0, jumping: false };
+  let player = { x: canvas.width / 2, y: canvas.height, width: 20, height: 20, speed: 5, velX: 0, velY: 0, jumping: false };
   let platforms = [];
   let platformCount = 10;
   for(let i = 0; i < platformCount; i++) {
     let hasEnemy = Math.random() < 0.05;
     let enemyType = hasEnemy ? Math.random() < 0.5 ? 1 : 2 : null;
-    platforms.push({ x: Math.random() * (canvas.width - 50), y: canvas.height - (100 * i) - 50, width: 100, height: 20, enemy: hasEnemy ? { type: enemyType, x: 0, dir: 1 } : null, isScored: false, isTouchedAlready: false, timeOnPlatform: 0, label: i });
+    platforms.push({ x: Math.random() * (canvas.width - 50), y: canvas.height - (100 * i) - 50, width: 100, height: 20, enemy: hasEnemy ? { type: enemyType, x: 0, dir: 1 } : null, touched: false });
   }
 
   let keys = [];
@@ -112,7 +112,7 @@
 
   function gameOver() {
     gameState = 'gameOver';
-    updateTopScores(score);
+    updateTopScores(score); // Update with the current score
     displayLeaderboard();
     gameOverModal.style.display = "block";
     cancelAnimationFrame(animationFrameId);
@@ -146,22 +146,26 @@
     player.x += player.velX;
     player.y += player.velY;
 
+    // Update highestY if the player reaches a new high
+    if (player.y < highestY) {
+      highestY = player.y;
+    }
+
     // Screen scroll and enemy movement
     if (player.y < canvas.height / 4) {
       player.y += Math.abs(player.velY);
       platforms.forEach(platform => {
         platform.y += Math.abs(player.velY);
-        platform.isScored = false; // Reset score for platforms
         if (platform.y > canvas.height) {
           platform.y = 0;
           platform.x = Math.random() * (canvas.width - platform.width);
-          platform.label += platformCount; // Update label for recycling
+          platform.touched = false; // Reset touched status for recycled platforms
           // Reset enemy for recycled platforms
           platform.enemy = Math.random() < 0.05 ? { type: Math.random() < 0.5 ? 1 : 2, x: 0, dir: 1 } : null;
         }
         // Move Type 2 enemies
         if (platform.enemy && platform.enemy.type === 2) {
-          platform.enemy.x += platform.enemy.dir * 2; // Speed of enemy movement
+          platform.enemy.x += platform.enemy.dir * 5; // Speed of enemy movement
           if (platform.enemy.x < 0 || platform.enemy.x > platform.width - 20) { // Enemy width assumed to be 20
             platform.enemy.dir *= -1; // Change direction
           }
@@ -182,7 +186,6 @@
       player.velY = 0;
     }
 
-    let onPlatform = false;
     // Platform and enemy collision
     platforms.forEach(platform => {
       if (
@@ -195,9 +198,6 @@
         player.jumping = false;
         player.velY = 0;
         player.y = platform.y - player.height;
-        onPlatform = true;
-        platform.isTouchedAlready = true;
-        platform.timeOnPlatform += deltaTime;
         // Check for collision with enemy
         if (platform.enemy) {
           let enemyX = platform.x + (platform.enemy.type === 2 ? platform.enemy.x : 40); // Adjust for enemy position
@@ -206,16 +206,10 @@
             gameOver();
           }
         }
-      } else {
-        platform.timeOnPlatform = 0; // Reset if player is not on the platform
-      }
-    });
-
-    // update score if player passed the platform
-    platforms.map(platform => {
-      if (platform.y > player.y + player.height && !platform.isTouchedAlready && !platform.isScored) {
-        score++;
-        platform.isScored = true;
+        if (!platform.touched) {
+          platform.touched = true; // Mark platform as touched
+          score += 1; // Increment score
+        }
       }
     });
 
@@ -226,23 +220,14 @@
     ctx.fillStyle = 'red';
     ctx.fillRect(player.x, player.y, player.width, player.height);
 
-    // Draw platforms, labels, and enemies
+    // Draw platforms and enemies
     platforms.forEach(platform => {
       ctx.fillStyle = 'black';
       ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-      if (platform.label % 10 === 0) {
-        ctx.fillStyle = 'white';
-        ctx.font = '14px Arial';
-        let text = platform.label.toString();
-        let textWidth = ctx.measureText(text).width;
-        let textX = platform.x + (platform.width - textWidth) / 2;
-        let textY = platform.y + 20;
-        ctx.fillText(text, textX, textY);
-      }
       // Draw enemies
       if (platform.enemy) {
         ctx.fillStyle = platform.enemy.type === 1 ? 'purple' : 'orange';
-        let enemyX = platform.x + (platform.enemy.type === 2 ? platform.enemy.x : 40); // Position for Type 2 enemy
+        let enemyX = platform.x + (platform.enemy.type === 2 ? platform.enemy.x : 40);
         ctx.fillRect(enemyX, platform.y - 20, 20, 20); // Drawing enemy above the platform
       }
     });
@@ -250,7 +235,7 @@
     // Draw score
     ctx.fillStyle = 'black';
     ctx.font = '20px Arial';
-    ctx.fillText("Score: " + score, 10, 30);
+    ctx.fillText("Score: " + score, 10, 30); // Display the score
 
     requestAnimationFrame(updateGame);
   }

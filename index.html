@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Platformer Game with Screen Scroll and Enemies</title>
+  <title>Platformer Game with Leaderboard</title>
   <style>
     body, html { margin: 0; padding: 0; overflow: hidden; }
     #gameCanvas { background-color: #87CEEB; }
@@ -17,19 +17,26 @@
       height: 100%; /* Full height */
       overflow: auto; /* Enable scroll if needed */
       background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+      text-align: center;
     }
     #gameOverContent {
       background-color: #fefefe;
       margin: 15% auto; /* 15% from the top and centered */
       padding: 20px;
       border: 1px solid #888;
-      width: 80%; /* Could be more or less, depending on screen size */
-      text-align: center;
+      width: 30%; /* Could be more or less, depending on screen size */
     }
     button {
       font-size: 20px;
       padding: 10px;
       margin-top: 20px;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    li {
+      margin: 5px 0;
     }
   </style>
 </head>
@@ -38,80 +45,86 @@
 <div id="gameOverModal">
   <div id="gameOverContent">
     <h2>Game Over</h2>
-    <p>Oops! You've been hit by an enemy.</p>
+    <p>Oops! You've lost.</p>
     <button onclick="restartGame()">Play Again</button>
+    <h3>Leaderboard</h3>
+    <ul id="leaderboard"></ul>
   </div>
 </div>
 <script>
   const canvas = document.getElementById('gameCanvas');
-  const gameOverModal = document.getElementById('gameOverModal');
   const ctx = canvas.getContext('2d');
+  const gameOverModal = document.getElementById('gameOverModal');
+  const leaderboardEl = document.getElementById('leaderboard');
 
+  let gameState = 'playing'; // 'playing' or 'gameOver'
   let lastUpdateTime = Date.now();
-  // Game settings
   const gravity = 0.5;
   const friction = 0.8;
-  const baseJump = -10; // Base jump velocity
+  const baseJump = -10;
+  let score = 0;
+  let animationFrameId;
 
-  // Player
-  let player = {
-    x: canvas.width / 2,
-    y: canvas.height - 150,
-    width: 20,
-    height: 20,
-    speed: 5,
-    velX: 0,
-    velY: 0,
-    jumping: false,
-    alreadyJumped: false
-  };
 
-  // Platforms and Enemies
+  let player = { x: canvas.width / 2, y: canvas.height - 150, width: 20, height: 20, speed: 5, velX: 0, velY: 0, jumping: false };
   let platforms = [];
   let platformCount = 10;
   for(let i = 0; i < platformCount; i++) {
-    let hasEnemy = Math.random() < 0.05; // 5% chance of an enemy on a platform
-    let enemyType = hasEnemy ? Math.random() < 0.5 ? 1 : 2 : null; // 50-50 for Type1 or Type2
-    platforms.push({
-      x: Math.random() * (canvas.width - 50),
-      y: canvas.height - (100 * i) - 50,
-      width: 100,
-      height: 20,
-      label: i + 1,
-      timeOnPlatform: 0,
-      isTouchedAlready: false,
-      falling: false,
-      enemy: hasEnemy ? { type: enemyType, x: 0, dir: 1 } : null // Enemy object if present
-    });
+    let hasEnemy = Math.random() < 0.05;
+    let enemyType = hasEnemy ? Math.random() < 0.5 ? 1 : 2 : null;
+    platforms.push({ x: Math.random() * (canvas.width - 50), y: canvas.height - (100 * i) - 50, width: 100, height: 20, enemy: hasEnemy ? { type: enemyType, x: 0, dir: 1 } : null, isScored: false, isTouchedAlready: false, timeOnPlatform: 0, label: i });
   }
 
-  // Score
-  let score = 0;
-
-  // Key Listener
   let keys = [];
+
   window.addEventListener('keydown', function(e) {
-    keys[e.keyCode] = true;
-    if (e.keyCode == 32 && !player.jumping) { // Space key for jump
-      player.jumping = true;
-      player.velY = baseJump - Math.abs(player.velX); // Adjusted to initiate jump correctly
+    if (gameState === 'playing') {
+      keys[e.keyCode] = true;
+      if (e.keyCode == 32 && !player.jumping) {
+        player.jumping = true;
+        player.velY = baseJump - Math.abs(player.velX);
+      }
     }
   });
   window.addEventListener('keyup', function(e) {
-    keys[e.keyCode] = false;
+    if (gameState === 'playing') {
+      keys[e.keyCode] = false;
+    }
   });
 
+  function getTopScores() {
+    const scoresStr = localStorage.getItem('topScores');
+    return scoresStr ? JSON.parse(scoresStr) : [];
+  }
+
+  function updateTopScores(newScore) {
+    const scores = getTopScores();
+    scores.push(newScore);
+    scores.sort((a, b) => b - a);
+    scores.splice(10); // Keep only top 10 scores
+    localStorage.setItem('topScores', JSON.stringify(scores));
+  }
+
+  function displayLeaderboard() {
+    const scores = getTopScores();
+    leaderboardEl.innerHTML = scores.map(score => `<li>${score}</li>`).join('');
+  }
+
   function gameOver() {
+    gameState = 'gameOver';
+    updateTopScores(score);
+    displayLeaderboard();
     gameOverModal.style.display = "block";
     cancelAnimationFrame(animationFrameId);
   }
 
   function restartGame() {
-    gameOverModal.style.display = "none";
     document.location.reload();
   }
 
   function updateGame() {
+    if (gameState !== 'playing') return;
+
     const now = Date.now();
     const deltaTime = (now - lastUpdateTime) / 1000;
     lastUpdateTime = now;
@@ -138,11 +151,11 @@
       player.y += Math.abs(player.velY);
       platforms.forEach(platform => {
         platform.y += Math.abs(player.velY);
+        platform.isScored = false; // Reset score for platforms
         if (platform.y > canvas.height) {
           platform.y = 0;
           platform.x = Math.random() * (canvas.width - platform.width);
           platform.label += platformCount; // Update label for recycling
-          score++;
           // Reset enemy for recycled platforms
           platform.enemy = Math.random() < 0.05 ? { type: Math.random() < 0.5 ? 1 : 2, x: 0, dir: 1 } : null;
         }
@@ -198,6 +211,14 @@
       }
     });
 
+    // update score if player passed the platform
+    platforms.map(platform => {
+      if (platform.y > player.y + player.height && !platform.isTouchedAlready && !platform.isScored) {
+        score++;
+        platform.isScored = true;
+      }
+    });
+
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -233,7 +254,7 @@
 
     requestAnimationFrame(updateGame);
   }
-  let animationFrameId = requestAnimationFrame(updateGame);
+  animationFrameId = requestAnimationFrame(updateGame);
 </script>
 </body>
 </html>

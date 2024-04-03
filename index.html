@@ -67,6 +67,7 @@
   let highestY = canvas.height; // Initialize highestY with the starting position of the player
   let animationFrameId;
   let score = 0; // Initialize score
+  let isJumpedAlready = false;
 
   let player = { x: canvas.width / 2, y: canvas.height, width: 20, height: 20, speed: 5, velX: 0, velY: 0, jumping: false };
   let platforms = [];
@@ -93,6 +94,7 @@
     if (gameState === 'playing') {
       keys[e.keyCode] = true;
       if (e.keyCode == 32 && !player.jumping) {
+        isJumpedAlready = true;
         player.jumping = true;
         player.velY = baseJump - Math.abs(player.velX);
       }
@@ -272,6 +274,10 @@
         ctx.fillRect(platform.x, platform.y, platform.width, 5);
       }
     });
+
+    if (player.y === canvas.height - player.height && !onPlatform && isJumpedAlready) {
+      gameOver();
+    }
 
     // Draw score
     ctx.fillStyle = 'black';

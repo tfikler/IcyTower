@@ -10,7 +10,6 @@
     #gameOverModal {
       display: none; /* Hidden by default */
       position: fixed; /* Stay in place */
-      z-index: 1; /* Sit on top */
       left: 0;
       top: 0;
       width: 100%; /* Full width */
@@ -21,7 +20,10 @@
     }
     #gameOverContent {
       background-color: #fefefe;
-      margin: 15% auto; /* 15% from the top and centered */
+      position: fixed; /* Changed to fixed to position relative to the viewport */
+      top: 50%; /* Start at 50% of the viewport height */
+      left: 50%; /* Start at 50% of the viewport width */
+      transform: translate(-50%, -50%); /* Offset by half of the element's width and height to center it */
       padding: 20px;
       border: 1px solid #888;
       width: 30%; /* Could be more or less, depending on screen size */
@@ -163,15 +165,18 @@
           // Reset enemy for recycled platforms
           platform.enemy = Math.random() < 0.05 ? { type: Math.random() < 0.5 ? 1 : 2, x: 0, dir: 1 } : null;
         }
-        // Move Type 2 enemies
-        if (platform.enemy && platform.enemy.type === 2) {
-          platform.enemy.x += platform.enemy.dir * 5; // Speed of enemy movement
-          if (platform.enemy.x < 0 || platform.enemy.x > platform.width - 20) { // Enemy width assumed to be 20
-            platform.enemy.dir *= -1; // Change direction
-          }
-        }
       });
     }
+
+    // make enemy 2 to always move
+    platforms.forEach(platform => {
+      if (platform.enemy && platform.enemy.type === 2) {
+        platform.enemy.x += platform.enemy.dir * 5; // Speed of enemy movement
+        if (platform.enemy.x < 0 || platform.enemy.x > platform.width - 20) { // Enemy width assumed to be 20
+          platform.enemy.dir *= -1; // Change direction
+        }
+      }
+    });
 
     // Collision with the canvas edges
     if (player.x >= canvas.width - player.width) {

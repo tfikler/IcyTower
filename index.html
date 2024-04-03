@@ -74,7 +74,7 @@
   for(let i = 0; i < platformCount; i++) {
     let hasEnemy = Math.random() < 0.05;
     let enemyType = hasEnemy ? Math.random() < 0.5 ? 1 : 2 : null;
-    platforms.push({ x: Math.random() * (canvas.width - 50), y: canvas.height - (100 * i) - 50, width: 100, height: 20, enemy: hasEnemy ? { type: enemyType, x: 0, dir: 1 } : null, touched: false });
+    platforms.push({ x: Math.random() * (canvas.width - 50), y: canvas.height - (100 * i) - 50, width: 100, height: 20,label: i+1, enemy: hasEnemy ? { type: enemyType, x: 0, dir: 1 } : null, touched: false });
   }
 
   let keys = [];
@@ -163,6 +163,7 @@
           platform.x = Math.random() * (canvas.width - platform.width);
           platform.touched = false; // Reset touched status for recycled platforms
           // Reset enemy for recycled platforms
+          platform.label += platformCount;
           platform.enemy = Math.random() < 0.05 ? { type: Math.random() < 0.5 ? 1 : 2, x: 0, dir: 1 } : null;
         }
       });
@@ -234,6 +235,15 @@
         ctx.fillStyle = platform.enemy.type === 1 ? 'purple' : 'orange';
         let enemyX = platform.x + (platform.enemy.type === 2 ? platform.enemy.x : 40);
         ctx.fillRect(enemyX, platform.y - 20, 20, 20); // Drawing enemy above the platform
+      }
+      if (platform.label % 10 === 0) { // Condition to display label
+        ctx.fillStyle = 'white';
+        ctx.font = '14px Arial';
+        let text = platform.label.toString();
+        let textWidth = ctx.measureText(text).width;
+        let textX = platform.x + (platform.width - textWidth) / 2;
+        let textY = platform.y + 20; // Adjust as needed
+        ctx.fillText(text, textX, textY);
       }
     });
 

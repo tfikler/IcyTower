@@ -267,6 +267,10 @@
         let textY = platform.y + 20; // Adjust as needed
         ctx.fillText(text, textX, textY);
       }
+      if (platform.touched) {
+        ctx.fillStyle = 'green';
+        ctx.fillRect(platform.x, platform.y, platform.width, 5);
+      }
     });
 
     // Draw score

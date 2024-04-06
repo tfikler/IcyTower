@@ -74,20 +74,23 @@
   let platformCount = 10;
   for(let i = 0; i < platformCount; i++) {
     let hasEnemy = Math.random() < 0.05;
+    let isMovingUpAndDown  = Math.random() < 0.06;
     let enemyType = hasEnemy ? Math.random() < 0.5 ? 1 : 2 : null;
     let platform = {
       x: Math.random() * (canvas.width - 50),
       y: canvas.height - (100 * i) - 30,
-      width: 100,
+      width: 100 + Math.random() * 50,
       height: 20,
       label: i+1,
       timeOnPlatform: 0,
       falling: false,
       enemy: hasEnemy ? { type: enemyType, x: 0, dir: 1 } : null,
-      touched: false
+      touched: false,
+      isMoving: isMovingUpAndDown
     };
-    if ((i === 0) || (i === 9)) {
-      platform.y += 30; // Adjust the first platform position
+    if (isMovingUpAndDown) {
+      platform.y = canvas.height - (100 * i) - 30;
+      platform.y += Math.sin(Date.now() / 1000) * 10;
     }
     platforms.push(platform);
   }
@@ -140,6 +143,27 @@
     document.location.reload();
   }
 
+  function findNotOverlappingY(platforms, platformHeight) {
+    let minY = 10; // Minimum Y position to start checking from the top
+    let maxY = canvas.height - platformHeight - 30; // Maximum Y to ensure platforms are within the canvas
+    let foundY = minY;
+
+    for (let potentialY = minY; potentialY < maxY; potentialY += platformHeight) {
+      // Check if the current potentialY overlaps with any existing platform
+      let overlapping = platforms.some(platform => {
+        return potentialY < platform.y + platform.height && potentialY + platformHeight > platform.y;
+      });
+
+      // If no overlap, use this Y position
+      if (!overlapping) {
+        foundY = potentialY;
+        break; // Exit the loop once a non-overlapping position is found
+      }
+    }
+
+    return foundY;
+  }
+
   function updateGame() {
     if (gameState !== 'playing') return;
 
@@ -169,18 +193,20 @@
       highestY = player.y;
     }
 
-    // Screen scroll and enemy movement
+    // Screen scroll the screen and recycle platforms
     if (player.y < canvas.height / 4) {
       player.y += Math.abs(player.velY);
       platforms.forEach(platform => {
         platform.y += Math.abs(player.velY);
         if (platform.y > canvas.height) {
-          platform.y = 0;
+          platform.y = findNotOverlappingY(platforms, platform.height);
           platform.x = Math.random() * (canvas.width - platform.width);
+          platform.width = 100 + Math.random() * 50;
           platform.touched = false; // Reset touched status for recycled platforms
           // Reset enemy for recycled platforms
           platform.label += platformCount;
           platform.enemy = Math.random() < 0.05 ? { type: Math.random() < 0.5 ? 1 : 2, x: 0, dir: 1 } : null;
+          platform.isMoving = Math.random() < 0.06;
         }
       });
     }
@@ -192,6 +218,13 @@
         if (platform.enemy.x < 0 || platform.enemy.x > platform.width - 20) { // Enemy width assumed to be 20
           platform.enemy.dir *= -1; // Change direction
         }
+      }
+    });
+
+    // make platform move up and down
+    platforms.forEach(platform => {
+      if (platform.isMoving) {
+        platform.y += Math.sin(Date.now() / 1000) * 0.65;
       }
     });
 

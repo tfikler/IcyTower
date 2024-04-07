@@ -67,8 +67,9 @@
   let highestY = canvas.height; // Initialize highestY with the starting position of the player
   let animationFrameId;
   let score = 0; // Initialize score
-  let isJumpedAlready = false;
 
+  let isJumpedAlready = false;
+  let lastPlatform = undefined;
   let player = { x: canvas.width / 2, y: canvas.height, width: 20, height: 20, speed: 5, velX: 0, velY: 0, jumping: false };
   let platforms = [];
   let platformCount = 10;
@@ -86,14 +87,27 @@
       falling: false,
       enemy: hasEnemy ? { type: enemyType, x: 0, dir: 1 } : null,
       touched: false,
-      isMoving: isMovingUpAndDown
+      isMoving: isMovingUpAndDown,
+      powerUp: false
     };
     if (isMovingUpAndDown) {
       platform.y = canvas.height - (100 * i) - 30;
       platform.y += Math.sin(Date.now() / 1000) * 10;
     }
     platforms.push(platform);
+    lastPlatform = platforms[platforms.length - 1];
   }
+  let randomPlatform = platforms[Math.floor(Math.random() * platforms.length)];
+
+  let starPowerUp = {
+    x: randomPlatform.x + randomPlatform.width / 2 - 20,
+    y: randomPlatform.y - 20,
+    width: 60,
+    height: 20,
+    active: false,
+    isPresent: true,
+    invulnerableTimeLeft: 0
+  };
 
   let keys = [];
 
@@ -143,25 +157,16 @@
     document.location.reload();
   }
 
-  function findNotOverlappingY(platforms, platformHeight) {
-    let minY = 10; // Minimum Y position to start checking from the top
-    let maxY = canvas.height - platformHeight - 30; // Maximum Y to ensure platforms are within the canvas
-    let foundY = minY;
-
-    for (let potentialY = minY; potentialY < maxY; potentialY += platformHeight) {
-      // Check if the current potentialY overlaps with any existing platform
-      let overlapping = platforms.some(platform => {
-        return potentialY < platform.y + platform.height && potentialY + platformHeight > platform.y;
-      });
-
-      // If no overlap, use this Y position
-      if (!overlapping) {
-        foundY = potentialY;
-        break; // Exit the loop once a non-overlapping position is found
-      }
+  function createNewStar() {
+    if (Math.random() < 0.01 && !starPowerUp.active && !starPowerUp.isPresent) {
+      let randomPlatform = platforms[Math.floor(Math.random() * platforms.length)];
+      while (randomPlatform.isMoving)
+        randomPlatform = platforms[Math.floor(Math.random() * platforms.length)];
+      starPowerUp.x = randomPlatform.x + randomPlatform.width / 2 - starPowerUp.width / 2;
+      starPowerUp.y = randomPlatform.y - starPowerUp.height;
+      starPowerUp.isPresent = true;
+      randomPlatform.powerUp = true;
     }
-
-    return foundY;
   }
 
   function updateGame() {
@@ -182,6 +187,16 @@
       }
     }
 
+    if (starPowerUp.invulnerableTimeLeft > 0) {
+      starPowerUp.invulnerableTimeLeft -= deltaTime;
+      if (starPowerUp.invulnerableTimeLeft <= 0) {
+        starPowerUp.invulnerableTimeLeft = 0; // Make sure it does not go negative
+        starPowerUp.active = false;
+        createNewStar();
+      }
+    }
+
+
     player.velX *= friction;
     player.velY += gravity;
 
@@ -199,16 +214,24 @@
       platforms.forEach(platform => {
         platform.y += Math.abs(player.velY);
         if (platform.y > canvas.height) {
-          platform.y = findNotOverlappingY(platforms, platform.height);
+          platform.y = lastPlatform.y - Math.random() * 100 - 30;
           platform.x = Math.random() * (canvas.width - platform.width);
           platform.width = 100 + Math.random() * 50;
           platform.touched = false; // Reset touched status for recycled platforms
           // Reset enemy for recycled platforms
           platform.label += platformCount;
+          platform.powerUp = false;
           platform.enemy = Math.random() < 0.05 ? { type: Math.random() < 0.5 ? 1 : 2, x: 0, dir: 1 } : null;
           platform.isMoving = Math.random() < 0.06;
+          lastPlatform = platform;
         }
       });
+      starPowerUp.y += Math.abs(player.velY);
+    }
+
+    if (((starPowerUp.y > canvas.height) && (starPowerUp.isPresent)) || (!starPowerUp.isPresent)) {
+        starPowerUp.isPresent = false;
+        createNewStar();
     }
 
     // make enemy 2 to always move
@@ -255,7 +278,7 @@
           player.velY = 0;
           player.y = platform.y - player.height;
           // Check for collision with enemy
-          if (platform.enemy) {
+          if (platform.enemy && starPowerUp.invulnerableTimeLeft <= 0) {
             let enemyX = platform.x + (platform.enemy.type === 2 ? platform.enemy.x : 40); // Adjust for enemy position
             if (player.x < enemyX + 20 && player.x + player.width > enemyX) {
               // Reset player or handle death
@@ -275,7 +298,17 @@
         } else {
           platform.timeOnPlatform = 0; // Reset if player is not on the platform
         }
-      } else {
+        if (!starPowerUp.active && player.x < starPowerUp.x + starPowerUp.width &&
+                player.x + player.width > starPowerUp.x &&
+                player.y < starPowerUp.y + starPowerUp.height &&
+                player.y + player.height > starPowerUp.y) {
+          starPowerUp.active = true;
+          starPowerUp.isPresent = false;
+          starPowerUp.invulnerableTimeLeft = 8; // Player is now invulnerable for 8 seconds
+        }
+      }
+
+      else {
         platform.y += 5;// Speed of falling
         platforms = platforms.filter(p => p !== platform);
       }
@@ -283,6 +316,12 @@
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw star power-up
+    if (!starPowerUp.active){
+      ctx.fillStyle = 'gold';
+      ctx.fillRect(starPowerUp.x, starPowerUp.y, starPowerUp.width, starPowerUp.height);
+    }
 
     // Draw player
     ctx.fillStyle = 'red';

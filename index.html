@@ -58,7 +58,10 @@
   const ctx = canvas.getContext('2d');
   const gameOverModal = document.getElementById('gameOverModal');
   const leaderboardEl = document.getElementById('leaderboard');
-
+  const enemy1 = new Image();
+  enemy1.src = 'ghost.png';
+  const playerImage = new Image();
+  playerImage.src = 'horseman4x.png';
   let gameState = 'playing'; // 'playing' or 'gameOver'
   let lastUpdateTime = Date.now();
   const gravity = 0.5;
@@ -70,7 +73,7 @@
 
   let isJumpedAlready = false;
   let lastPlatform = undefined;
-  let player = { x: canvas.width / 2, y: canvas.height, width: 20, height: 20, speed: 5, velX: 0, velY: 0, jumping: false };
+  let player = { x: canvas.width / 2, y: canvas.height, width: 30, height: 30, speed: 5, velX: 0, velY: 0, jumping: false };
   let platforms = [];
   let platformCount = 10;
   for(let i = 0; i < platformCount; i++) {
@@ -158,8 +161,9 @@
   }
 
   function createNewStar() {
+    const validPlatform = [7,8,9]
     if (Math.random() < 0.01 && !starPowerUp.active && !starPowerUp.isPresent) {
-      let randomPlatform = platforms[Math.floor(Math.random() * platforms.length)];
+      let randomPlatform = platforms[Math.floor(Math.random() * validPlatform.length)];
       while (randomPlatform.isMoving)
         randomPlatform = platforms[Math.floor(Math.random() * platforms.length)];
       starPowerUp.x = randomPlatform.x + randomPlatform.width / 2 - starPowerUp.width / 2;
@@ -325,7 +329,7 @@
 
     // Draw player
     ctx.fillStyle = 'red';
-    ctx.fillRect(player.x, player.y, player.width, player.height);
+    ctx.drawImage(playerImage,player.x, player.y, player.width, player.height);
 
     // Draw platforms and enemies
     platforms.forEach(platform => {
@@ -335,7 +339,7 @@
       if (platform.enemy) {
         ctx.fillStyle = platform.enemy.type === 1 ? 'purple' : 'orange';
         let enemyX = platform.x + (platform.enemy.type === 2 ? platform.enemy.x : 40);
-        ctx.fillRect(enemyX, platform.y - 20, 20, 20); // Drawing enemy above the platform
+        ctx.drawImage(enemy1, enemyX, platform.y - 40, 40, 40); // Drawing enemy above the platform
       }
       if (platform.label % 10 === 0) { // Condition to display label
         ctx.fillStyle = 'white';
